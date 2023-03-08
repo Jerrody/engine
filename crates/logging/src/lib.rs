@@ -1,28 +1,56 @@
-// TODO: Create different logs for the different features (`dev`, `editor`, `shipping`).
+#![feature(stmt_expr_attributes)]
+#![feature(panic_info_message)]
 
-use std::panic;
+mod macros;
 
-use tracing::*;
+pub use macros::*;
+pub use tracing;
+
+use std::{panic, path::Path};
+use tracing::Level;
 use tracing_subscriber::{fmt, prelude::__tracing_subscriber_SubscriberExt, Registry};
+
+#[derive(Debug, Default)]
+pub enum LogLevel {
+    #[default]
+    Dev,
+    Editor,
+    Shipping,
+}
+
+impl From<LogLevel> for tracing::Level {
+    fn from(value: LogLevel) -> Self {
+        match value {
+            LogLevel::Dev => Level::DEBUG,
+            LogLevel::Editor => Level::INFO,
+            LogLevel::Shipping => Level::ERROR,
+        }
+    }
+}
 
 pub struct Logging {
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
 
 impl Logging {
-    const LOG_FILE_NAME: &str = "engine.log";
-    const LOG_FILE_PATH: &str = "engine/";
+    pub fn new(file_directory: &Path, file_name: &str, log_level: LogLevel) -> Self {
+        #[cfg(all(feature = "dev", any(feature = "editor", feature = "shipping")))]
+        compile_error!("Cannot be enalbed `dev` feature and the other one.");
 
-    pub fn new() -> Self {
-        if let Ok(log_file) = std::fs::File::options()
-            .write(true)
-            .open("engine/engine.log")
-        {
+        #[cfg(all(feature = "editor", any(feature = "dev", feature = "shipping")))]
+        compile_error!("Cannot be enabled `editor` feature anad the other one.");
+
+        #[cfg(all(feature = "shipping", any(feature = "dev", feature = "editor")))]
+        compile_error!("Cannot be enabled `snipping` feature and the other one.");
+
+        if let Ok(log_file) = std::fs::File::options().write(true).open(std::format!(
+            "{}/{file_name}",
+            file_directory.as_os_str().to_string_lossy()
+        )) {
             log_file.set_len(Default::default()).unwrap();
         }
 
-        let file_appender =
-            tracing_appender::rolling::never(Self::LOG_FILE_PATH, Self::LOG_FILE_NAME);
+        let file_appender = tracing_appender::rolling::never(file_directory, file_name);
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
         let offset_time = fmt::time::OffsetTime::new(
@@ -31,14 +59,10 @@ impl Logging {
         );
 
         let subscriber = Registry::default()
-            .with(tracing_subscriber::EnvFilter::default().add_directive(
-                #[cfg(feature = "dev")]
-                Level::DEBUG.into(),
-                #[cfg(feature = "editor")]
-                Level::INFO.into(),
-                #[cfg(feature = "shipping")]
-                Level::ERROR.into(),
-            ))
+            .with(
+                tracing_subscriber::EnvFilter::default()
+                    .add_directive(Level::from(log_level).into()),
+            )
             .with(
                 fmt::Layer::new()
                     .pretty()
@@ -72,8 +96,8 @@ impl Logging {
         panic::set_hook(Box::new(|args| {
             if let Some(message) = args.message() {
                 let location = args.location().unwrap();
-                error!(
-                    "{message}\n  Location: {}:{}:{}",
+                tracing::error!(
+                    "{message}\n\tLocation: {}:{}:{}",
                     location.file(),
                     location.line(),
                     location.column()

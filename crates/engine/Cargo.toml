@@ -1,0 +1,20 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ash = { git = "https://github.com/ash-rs/ash" }
+ash-window = { git = "https://github.com/ash-rs/ash" }
+winit = "0.28.1"
+shaderc = "0.8.2"
+glam = "0.23.0"
+mimalloc = "0.1.34"
+logging = { path = "../logging/" }
+
+[features]
+default = ["shipping"]
+dev = ["logging/dev"]
+editor = ["logging/editor"]
+shipping = ["logging/shipping"]
+profiling = ["logging/profiling"]

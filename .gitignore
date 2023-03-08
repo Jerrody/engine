@@ -1,6 +1,5 @@
 .cargo
 .vscode
 
-*.log
-
 /target
+/logs

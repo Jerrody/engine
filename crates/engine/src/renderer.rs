@@ -9,7 +9,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Self {
-        let context = Context::new(&window);
+        let context = Context::new(window);
 
         Self { context }
     }
