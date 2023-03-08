@@ -96,12 +96,14 @@ impl Logging {
         panic::set_hook(Box::new(|args| {
             if let Some(message) = args.message() {
                 let location = args.location().unwrap();
-                tracing::error!(
-                    "{message}\n\tLocation: {}:{}:{}",
+                let message = std::format!(
+                    "{message}\n  Location: {}:{}:{}",
                     location.file(),
                     location.line(),
                     location.column()
                 );
+
+                error!(message);
             }
         }));
 
