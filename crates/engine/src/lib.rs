@@ -2,6 +2,8 @@
 
 mod renderer;
 
+use core::panic;
+
 use logging::*;
 
 pub struct Engine {

@@ -97,7 +97,7 @@ impl Logging {
             if let Some(message) = args.message() {
                 let location = args.location().unwrap();
                 let message = std::format!(
-                    "{message}\n  Location: {}:{}:{}",
+                    "{message} -> Location: {}:{}:{}",
                     location.file(),
                     location.line(),
                     location.column()
