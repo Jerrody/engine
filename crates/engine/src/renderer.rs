@@ -1,16 +1,19 @@
 mod context;
 mod utils;
 
-use context::Context;
+use logging::*;
+
+use crate::error::EngineError;
 
 pub struct Renderer {
-    context: Context,
+    context: context::Context,
 }
 
 impl Renderer {
-    pub fn new(window: &winit::window::Window) -> Self {
-        let context = Context::new(window);
+    pub fn new(window: &winit::window::Window) -> Result<Self, EngineError> {
+        debug!("Initializing Vulkan");
+        let context = context::Context::new(window)?;
 
-        Self { context }
+        Ok(Self { context })
     }
 }

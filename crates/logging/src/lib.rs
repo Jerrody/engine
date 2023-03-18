@@ -1,4 +1,3 @@
-#![feature(stmt_expr_attributes)]
 #![feature(panic_info_message)]
 
 mod macros;
@@ -95,15 +94,18 @@ impl Logging {
 
         panic::set_hook(Box::new(|args| {
             if let Some(message) = args.message() {
+                let backtrace = backtrace::Backtrace::new();
                 let location = args.location().unwrap();
+
                 let message = std::format!(
-                    "{message} -> Location: {}:{}:{}",
+                    "\n  Message:\n  {message}\n  Location: {}:{}:{}\n  Backtrace:\n{:#?}",
                     location.file(),
                     location.line(),
-                    location.column()
+                    location.column(),
+                    backtrace,
                 );
 
-                error!(message);
+                tracing::error!(message);
             }
         }));
 

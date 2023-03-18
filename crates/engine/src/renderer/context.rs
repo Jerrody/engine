@@ -4,6 +4,9 @@ mod device;
 mod instance;
 
 use instance::Instance;
+use logging::*;
+
+use crate::error::EngineError;
 
 pub struct Context {
     entry: ManuallyDrop<ash::Entry>,
@@ -11,14 +14,16 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(window: &winit::window::Window) -> Self {
+    pub fn new(window: &winit::window::Window) -> Result<Self, EngineError> {
+        debug!("Loading Vulkan lib");
         let entry = unsafe { ash::Entry::load().unwrap() };
-        let instance = Instance::new(&entry);
+        debug!("Creating an Instance of Vulkan Application");
+        let instance = Instance::new(&entry, window)?;
 
-        Self {
+        Ok(Self {
             entry: ManuallyDrop::new(entry),
             instance,
-        }
+        })
     }
 }
 

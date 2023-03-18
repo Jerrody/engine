@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+engine = { path = "../engine/" }
+
 winit = "0.28.2"
 mimalloc = "0.1.34"
-engine = { path = "../engine/" }

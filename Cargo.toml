@@ -1,10 +1,6 @@
 [workspace]
 members = ["crates/logging", "crates/engine", "crates/game"]
 
-[profile.dev]
-lto = true
-opt-level = 2
-
 [profile.release]
 lto = true
 opt-level = 3

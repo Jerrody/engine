@@ -1,46 +1,51 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod error;
 mod renderer;
 
-use core::panic;
-
+use error::EngineError;
 use logging::*;
 
 pub struct Engine {
     renderer: renderer::Renderer,
-    logging: logging::Logging,
+    logging: Logging,
 }
 
 impl Engine {
     pub const ENGINE_LOG_DIRECTORY: &str = "logs";
     pub const ENGINE_LOG_NAME: &str = "engine.log";
 
-    pub fn new(window: &winit::window::Window) -> Self {
-        let renderer = renderer::Renderer::new(window);
+    pub fn new(window: &winit::window::Window) -> Result<Self, EngineError> {
+        let logging = Self::init_logging();
 
+        info!("Initializing renderer");
+        let renderer = renderer::Renderer::new(window)?;
+
+        Ok(Self { renderer, logging })
+    }
+
+    fn init_logging() -> Logging {
         let log_level = {
             #[cfg(feature = "dev")]
             {
-                logging::LogLevel::Dev
+                LogLevel::Dev
             }
 
             #[cfg(feature = "editor")]
             {
-                logging::LogLevel::Editor
+                LogLevel::Editor
             }
 
             #[cfg(feature = "shipping")]
             {
-                logging::LogLevel::Shipping
+                LogLevel::Shipping
             }
         };
 
-        let logging = logging::Logging::new(
+        Logging::new(
             &std::path::PathBuf::from(Self::ENGINE_LOG_DIRECTORY),
             Self::ENGINE_LOG_NAME,
             log_level,
-        );
-
-        Self { renderer, logging }
+        )
     }
 }
