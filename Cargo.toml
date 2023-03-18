@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/logging", "crates/engine", "crates/game"]
+members = ["crates/logging", "crates/engine", "crates/application"]
 
 [profile.release]
 lto = true
