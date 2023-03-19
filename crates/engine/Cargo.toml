@@ -23,8 +23,11 @@ logging = { path = "../logging/" }
 thiserror = "1.0.39"
 
 [features]
-default = ["dev"]
+default = ["engine", "dev"]
 dev = ["logging/dev"]
-editor = ["logging/editor"]
+stable = ["logging/stable"]
 shipping = ["logging/shipping"]
 profiling = ["logging/profiling"]
+
+# For the logging crate.
+engine = []

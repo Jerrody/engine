@@ -6,7 +6,7 @@ mod instance;
 use instance::Instance;
 use logging::*;
 
-use crate::error::EngineError;
+use crate::error::EngineResult;
 
 pub struct Context {
     entry: ManuallyDrop<ash::Entry>,
@@ -14,9 +14,9 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(window: &winit::window::Window) -> Result<Self, EngineError> {
+    pub fn new(window: &winit::window::Window) -> EngineResult<Self> {
         debug!("Loading Vulkan lib");
-        let entry = unsafe { ash::Entry::load().unwrap() };
+        let entry = unsafe { ash::Entry::load()? };
         debug!("Creating an Instance of Vulkan Application");
         let instance = Instance::new(&entry, window)?;
 

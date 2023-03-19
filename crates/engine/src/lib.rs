@@ -3,7 +3,7 @@
 mod error;
 mod renderer;
 
-use error::EngineError;
+use error::*;
 use logging::*;
 
 pub struct Engine {
@@ -15,7 +15,7 @@ impl Engine {
     pub const ENGINE_LOG_DIRECTORY: &str = "logs";
     pub const ENGINE_LOG_NAME: &str = "engine.log";
 
-    pub fn new(window: &winit::window::Window) -> Result<Self, EngineError> {
+    pub fn new(window: &winit::window::Window) -> EngineResult<Self> {
         let logging = Self::init_logging();
 
         info!("Initializing renderer");

@@ -22,6 +22,7 @@ backtrace = "0.3"
 
 [features]
 dev = []
-editor = []
+stable = []
 shipping = []
+
 profiling = []

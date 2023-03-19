@@ -1,22 +1,16 @@
 use ash::vk::Result;
 use thiserror::Error;
 
+pub type EngineResult<T> = std::result::Result<T, EngineError>;
+
 #[derive(Error, Debug)]
 pub enum EngineError {
-    #[error("Vulkan Error: {0}.")]
-    VulkanResult(ash::vk::Result),
+    #[error("Failed to load Vulkan Lib: {0}")]
+    VulkanLoadingError(#[from] ash::LoadingError),
+    #[error("Failed to create Vulkan instance: {0}")]
+    InstanceCreationFailed(String),
+    #[error("Vulkan API Error: {0}")]
+    VulkanApiError(#[from] Result),
     #[error("{0}")]
-    Error(String),
-}
-
-impl From<ash::vk::Result> for EngineError {
-    fn from(error: Result) -> Self {
-        Self::VulkanResult(error)
-    }
-}
-
-impl From<&str> for EngineError {
-    fn from(error: &str) -> Self {
-        Self::Error(error.to_owned())
-    }
+    UknownError(String),
 }

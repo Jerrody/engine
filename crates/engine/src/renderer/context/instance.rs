@@ -4,7 +4,7 @@ use ash::vk;
 use logging::*;
 use raw_window_handle::HasRawDisplayHandle;
 
-use crate::{cstr, error::EngineError};
+use crate::{cstr, EngineError, EngineResult};
 
 pub struct Instance {
     pub instance: ash::Instance,
@@ -17,7 +17,7 @@ impl Instance {
     #[cfg(feature = "dev")]
     const VALIDATION_LAYER_NAME: *const c_char = cstr!("VK_LAYER_KHRONOS_validation");
 
-    pub fn new(entry: &ash::Entry, window: &winit::window::Window) -> Result<Self, EngineError> {
+    pub fn new(entry: &ash::Entry, window: &winit::window::Window) -> EngineResult<Self> {
         debug!("Creating Application info");
         let application_info = vk::ApplicationInfo {
             p_application_name: Self::APPLICATION_NAME,
@@ -68,65 +68,48 @@ impl Instance {
         Ok(Self { instance })
     }
 
-    // TODO: Enumerate what layers unable to find.
-    fn get_layer_names(
-        available_layers: &[vk::LayerProperties],
-    ) -> Result<Vec<*const i8>, EngineError> {
-        #[cfg(not(feature = "dev"))]
-        {
-            Ok(Default::default())
-        }
-
+    fn get_layer_names(available_layers: &[vk::LayerProperties]) -> EngineResult<Vec<*const i8>> {
         #[cfg(feature = "dev")]
         {
-            let mut unavailable_layer_names = vec![];
-
+            let mut missing_layer_names = vec![];
             let required_layer_raw_names = vec![Self::VALIDATION_LAYER_NAME];
-            let required_layer_names: Vec<_> = required_layer_raw_names
-                .iter()
-                .map(|required_layer_name| unsafe { CStr::from_ptr(*required_layer_name) })
-                .collect();
 
-            let are_presented = required_layer_names.into_iter().all(|required_layer_name| {
-                let is_found_layer = available_layers.iter().any(|available_layer_property| {
-                    let available_layer_name =
-                        unsafe { CStr::from_ptr(available_layer_property.layer_name.as_ptr()) };
+            for required_layer_raw_name in &required_layer_raw_names {
+                let required_layer_name = unsafe { CStr::from_ptr(*required_layer_raw_name) };
 
-                    required_layer_name == available_layer_name
-                });
-
-                if !is_found_layer {
-                    unavailable_layer_names.push(required_layer_name.to_str().unwrap().to_owned());
+                if !available_layers.iter().any(|available_layer| unsafe {
+                    CStr::from_ptr(available_layer.layer_name.as_ptr()) == required_layer_name
+                }) {
+                    missing_layer_names.push(required_layer_name.to_str().unwrap().to_owned());
                 }
-
-                is_found_layer
-            });
-
-            if unavailable_layer_names.len() > Default::default() {
-                let mut unavailable_layers_text = String::from("Failed to find required Layers:\n");
-
-                unavailable_layer_names
-                    .iter()
-                    .for_each(|unavailable_layer_name| {
-                        unavailable_layers_text
-                            .push_str(&std::format!("    - {unavailable_layer_name}\n"))
-                    });
-
-                error!(unavailable_layers_text);
             }
 
-            match are_presented {
-                true => Ok(required_layer_raw_names.to_owned()),
-                false => Err("Not presented required Layers for the Instance of Vulkan.")?,
+            if !missing_layer_names.is_empty() {
+                let missing_layers_text = format!(
+                    "Failed to find required Layers:\n{}",
+                    missing_layer_names
+                        .iter()
+                        .map(|missing_layer_name| format!("    - {}\n", missing_layer_name))
+                        .collect::<String>()
+                );
+                error!(missing_layers_text);
+
+                return Err(EngineError::InstanceCreationFailed(
+                    "Not presented required Layers for the Instance of Vulkan.".to_owned(),
+                ));
             }
+
+            Ok(required_layer_raw_names.to_owned())
         }
+
+        #[cfg(not(feature = "dev"))]
+        Ok(Default::default())
     }
 
-    // TODO: Enumerate what extensions unable to find.
     fn get_extension_names(
         window: &winit::window::Window,
         available_extensions: &[vk::ExtensionProperties],
-    ) -> Result<Vec<*const i8>, EngineError> {
+    ) -> EngineResult<Vec<*const i8>> {
         let required_extension_raw_names =
             ash_window::enumerate_required_extensions(window.raw_display_handle())?;
         let required_extension_names: Vec<_> = required_extension_raw_names
@@ -134,55 +117,37 @@ impl Instance {
             .map(|required_extension_name| unsafe { CStr::from_ptr(*required_extension_name) })
             .collect();
 
-        #[cfg(feature = "dev")]
-        let mut unavailable_extension_names = vec![];
+        let mut missing_extension_names = vec![];
 
-        let are_presented = required_extension_names
-            .into_iter()
-            .all(|required_extension_name| {
-                let is_found_extension =
-                    available_extensions
-                        .iter()
-                        .any(|available_extension_property| {
-                            let available_extension_name = unsafe {
-                                CStr::from_ptr(available_extension_property.extension_name.as_ptr())
-                            };
-
-                            available_extension_name == required_extension_name
-                        });
-
-                #[cfg(feature = "dev")]
-                {
-                    if !is_found_extension {
-                        unavailable_extension_names
-                            .push(required_extension_name.to_str().unwrap().to_owned());
-                    }
-                }
-
-                is_found_extension
-            });
-
-        #[cfg(feature = "dev")]
-        {
-            if unavailable_extension_names.len() > Default::default() {
-                let mut unavailable_extensions_text =
-                    String::from("Failed to find required Extensions:\n");
-
-                unavailable_extension_names
-                    .iter()
-                    .for_each(|unavailable_extenion_name| {
-                        unavailable_extensions_text
-                            .push_str(&std::format!("    - {unavailable_extenion_name}\n"))
-                    });
-
-                error!(unavailable_extensions_text);
+        for required_extension_name in required_extension_names {
+            if !available_extensions
+                .iter()
+                .any(|available_extension| unsafe {
+                    CStr::from_ptr(available_extension.extension_name.as_ptr())
+                        == required_extension_name
+                })
+            {
+                missing_extension_names.push(required_extension_name.to_str().unwrap().to_owned());
             }
         }
 
-        match are_presented {
-            true => Ok(required_extension_raw_names.to_owned()),
-            false => Err("Aren't presented required extensions for the Instance of Vulkan.")?,
+        if !missing_extension_names.is_empty() {
+            let missing_extensions_text = format!(
+                "Failed to find required Extensions:\n{}",
+                missing_extension_names
+                    .iter()
+                    .map(|missing_extension_name| format!("    - {}\n", missing_extension_name))
+                    .collect::<String>()
+            );
+
+            error!(missing_extensions_text);
+
+            return Err(EngineError::InstanceCreationFailed(
+                "Aren't presented required extensions for the Instance of Vulkan.".to_owned(),
+            ))?;
         }
+
+        Ok(required_extension_raw_names.to_owned())
     }
 }
 
