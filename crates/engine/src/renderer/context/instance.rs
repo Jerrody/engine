@@ -19,18 +19,35 @@ impl Instance {
 
     pub fn new(entry: &ash::Entry, window: &winit::window::Window) -> EngineResult<Self> {
         debug!("Creating Application info");
+
+        let application_name = unsafe { CStr::from_ptr(Self::APPLICATION_NAME) };
+        let application_version = (0, 1, 0);
+
+        let engine_name = unsafe { CStr::from_ptr(Self::ENGINE_NAME) };
+        let engine_version = (0, 1, 0);
+
         let application_info = vk::ApplicationInfo {
-            p_application_name: Self::APPLICATION_NAME,
-            application_version: vk::make_api_version(0, 0, 1, 0),
-            p_engine_name: Self::ENGINE_NAME,
-            engine_version: vk::make_api_version(0, 0, 1, 0),
+            p_application_name: application_name.as_ptr(),
+            application_version: vk::make_api_version(
+                0,
+                application_version.0,
+                application_version.1,
+                application_version.2,
+            ),
+            p_engine_name: engine_name.as_ptr(),
+            engine_version: vk::make_api_version(
+                0,
+                engine_version.0,
+                engine_version.1,
+                engine_version.0,
+            ),
             api_version: vk::API_VERSION_1_3,
             ..Default::default()
         };
 
         debug!("Checking for availability layers");
         let available_layers = entry.enumerate_instance_layer_properties()?;
-        let layers_names = Self::get_layer_names(&available_layers)?;
+        let layer_names = Self::get_layer_names(&available_layers)?;
 
         debug!("Checking for avalability extensions");
         let available_extensions =
@@ -40,30 +57,18 @@ impl Instance {
         debug!("Creating an Instance");
         let instance_info = vk::InstanceCreateInfo::default()
             .application_info(&application_info)
-            .enabled_layer_names(&layers_names)
+            .enabled_layer_names(&layer_names)
             .enabled_extension_names(&extension_names);
         let instance = unsafe { entry.create_instance(&instance_info, None)? };
 
-        #[cfg(feature = "dev")]
-        {
-            let mut instance_info = String::from("Created an Instance.\n\n");
-
-            instance_info.push_str("    With Layers:\n");
-            layers_names.iter().for_each(|layer_name| {
-                instance_info.push_str(&std::format!("    - {}\n", unsafe {
-                    CStr::from_ptr(*layer_name).to_str().unwrap()
-                }))
-            });
-            instance_info.push_str("\n");
-            instance_info.push_str("    With Extensions:\n");
-            extension_names.iter().for_each(|extension_name| {
-                instance_info.push_str(&std::format!("    - {}\n", unsafe {
-                    CStr::from_ptr(*extension_name).to_str().unwrap()
-                }));
-            });
-
-            debug!(instance_info);
-        }
+        Self::print_info(
+            &application_name.to_str().unwrap().to_owned(),
+            application_version,
+            &engine_name.to_str().unwrap().to_owned(),
+            engine_version,
+            &extension_names,
+            &layer_names,
+        );
 
         Ok(Self { instance })
     }
@@ -148,6 +153,63 @@ impl Instance {
         }
 
         Ok(required_extension_raw_names.to_owned())
+    }
+
+    fn print_info(
+        application_name: &str,
+        application_version: (u32, u32, u32),
+        engine_name: &str,
+        engine_version: (u32, u32, u32),
+        extension_names: &[*const i8],
+        layer_names: &[*const i8],
+    ) {
+        let mut instance_info = String::from("Created an Instance.\n\n");
+
+        instance_info.push_str("    Application Info:\n");
+
+        let application_name = std::format!("    - Application Name: {application_name}\n");
+        instance_info.push_str(&application_name);
+
+        let application_version = std::format!(
+            "    - Application Version: {}.{}.{}\n",
+            application_version.0,
+            application_version.1,
+            application_version.2
+        );
+        instance_info.push_str(&application_version);
+
+        let engine_name = std::format!("    - Engine Name: {engine_name}\n");
+        instance_info.push_str(&engine_name);
+
+        let engine_version = std::format!(
+            "    - Engine Version: {}.{}.{}\n",
+            engine_version.0,
+            engine_version.1,
+            engine_version.2
+        );
+        instance_info.push_str(&engine_version);
+
+        let vulkan_version = std::format!("    - Vulkan API: 1.3\n\n");
+        instance_info.push_str(&vulkan_version);
+
+        #[cfg(feature = "dev")]
+        {
+            instance_info.push_str("    With Layers:\n");
+            layer_names.iter().for_each(|layer_name| {
+                instance_info.push_str(&std::format!("    - {}\n", unsafe {
+                    CStr::from_ptr(*layer_name).to_str().unwrap()
+                }))
+            });
+            instance_info.push_str("\n");
+            instance_info.push_str("    With Extensions:\n");
+            extension_names.iter().for_each(|extension_name| {
+                instance_info.push_str(&std::format!("    - {}\n", unsafe {
+                    CStr::from_ptr(*extension_name).to_str().unwrap()
+                }));
+            });
+        }
+
+        debug!(instance_info);
     }
 }
 
