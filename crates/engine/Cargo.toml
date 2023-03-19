@@ -29,5 +29,5 @@ stable = ["logging/stable"]
 shipping = ["logging/shipping"]
 profiling = ["logging/profiling"]
 
-# For the logging crate.
+# For the logging crate, should be always turned on or logging will be ignored.
 engine = []
