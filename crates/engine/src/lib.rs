@@ -12,13 +12,13 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub const ENGINE_LOG_DIRECTORY: &str = "logs";
-    pub const ENGINE_LOG_NAME: &str = "engine.log";
+    const ENGINE_LOG_DIRECTORY: &str = "logs";
+    const ENGINE_LOG_NAME: &str = "engine.log";
 
     pub fn new(window: &winit::window::Window) -> EngineResult<Self> {
         let logging = Self::init_logging();
 
-        info!("Initializing renderer");
+        info!("Initializing renderer.");
         let renderer = renderer::Renderer::new(window)?;
 
         Ok(Self { renderer, logging })

@@ -1,9 +1,11 @@
 #![feature(panic_info_message)]
 
 mod macros;
+mod utils;
 
 pub use macros::*;
 pub use tracing;
+pub use utils::*;
 
 use std::{panic, path::Path};
 use tracing::Level;
@@ -34,10 +36,10 @@ pub struct Logging {
 impl Logging {
     pub fn new(file_directory: &Path, file_name: &str, log_level: LogLevel) -> Self {
         #[cfg(all(feature = "dev", any(feature = "editor", feature = "shipping")))]
-        compile_error!("Cannot be enalbed `dev` feature and the other one.");
+        compile_error!("Cannot be enabled `dev` feature and the other one.");
 
         #[cfg(all(feature = "editor", any(feature = "dev", feature = "shipping")))]
-        compile_error!("Cannot be enabled `editor` feature anad the other one.");
+        compile_error!("Cannot be enabled `editor` feature and the other one.");
 
         #[cfg(all(feature = "shipping", any(feature = "dev", feature = "editor")))]
         compile_error!("Cannot be enabled `snipping` feature and the other one.");

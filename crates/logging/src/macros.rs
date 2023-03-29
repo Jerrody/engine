@@ -2,7 +2,12 @@
 macro_rules! log_msg {
     ($level:ident, $app_layer:expr, $app_name:expr, $env_layer:expr, $env_name:expr, $s:expr) => {
         #[cfg(all(feature = $app_layer, feature = $env_layer))]
-        tracing::$level!("\n    [{}][{}]\n    {}", $app_name, $env_name, $s);
+        tracing::$level!(
+            "\n{TAB_IN_SPACES}[{}][{}]\n{TAB_IN_SPACES}{}",
+            $app_name,
+            $env_name,
+            $s
+        );
     };
 }
 

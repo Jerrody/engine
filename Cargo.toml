@@ -1,6 +1,11 @@
 [workspace]
 members = ["crates/logging", "crates/engine", "crates/application"]
 
+[profile.dev]
+lto = true
+opt-level = 3
+strip = true
+
 [profile.release]
 lto = true
 opt-level = 3
