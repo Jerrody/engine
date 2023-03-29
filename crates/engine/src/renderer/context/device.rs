@@ -2,7 +2,7 @@ use logging::*;
 
 use crate::{
     error::{EngineError, EngineResult},
-    renderer::{context::device, utils::to_cstr},
+    renderer::utils::to_cstr,
 };
 
 use std::ffi::c_char;
