@@ -66,12 +66,13 @@ impl InstanceHandle {
 
         debug!("Checking for Instance Extensions requirement.");
 
-        let required_extension_names =
-            ash_window::enumerate_required_extensions(window.raw_display_handle())?;
+        let mut required_extension_names =
+            ash_window::enumerate_required_extensions(window.raw_display_handle())?.to_vec();
+        required_extension_names.push(ash::extensions::ext::DebugUtils::name().as_ptr());
         let available_extensions =
             entry.enumerate_instance_extension_properties(Default::default())?;
         let does_support = super::Context::does_support_extensions(
-            required_extension_names,
+            &required_extension_names,
             &available_extensions,
             "Failed to find required Extensions of Instance",
         );
@@ -86,7 +87,7 @@ impl InstanceHandle {
         let instance_info = vk::InstanceCreateInfo::default()
             .application_info(&application_info)
             .enabled_layer_names(required_layer_names)
-            .enabled_extension_names(required_extension_names);
+            .enabled_extension_names(&required_extension_names);
         let instance = unsafe { entry.create_instance(&instance_info, None)? };
 
         let application_name = application_name.to_str().unwrap().to_owned();
@@ -97,7 +98,7 @@ impl InstanceHandle {
             &engine_name,
             engine_version,
             required_layer_names,
-            required_extension_names,
+            &required_extension_names,
         );
 
         Ok(Self { instance })

@@ -8,7 +8,7 @@ use logging::*;
 
 pub struct Engine {
     renderer: renderer::Renderer,
-    logging: Logging,
+    _logging: Logging,
 }
 
 impl Engine {
@@ -21,25 +21,22 @@ impl Engine {
         info!("Initializing renderer.");
         let renderer = renderer::Renderer::new(window)?;
 
-        Ok(Self { renderer, logging })
+        Ok(Self {
+            renderer,
+            _logging: logging,
+        })
     }
 
     fn init_logging() -> Logging {
-        let log_level = {
+        let log_level = match () {
             #[cfg(feature = "dev")]
-            {
-                LogLevel::Dev
-            }
+            _ => LogLevel::Dev,
 
             #[cfg(feature = "editor")]
-            {
-                LogLevel::Editor
-            }
+            _ => LogLevel::Editor,
 
             #[cfg(feature = "shipping")]
-            {
-                LogLevel::Shipping
-            }
+            _ => LogLevel::Shipping,
         };
 
         Logging::new(

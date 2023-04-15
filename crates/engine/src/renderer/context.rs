@@ -1,3 +1,5 @@
+#[cfg(feature = "dev")]
+mod debug_messenger;
 mod device;
 mod instance;
 mod surface;
@@ -17,6 +19,7 @@ use std::mem::ManuallyDrop;
 pub struct Context {
     entry: ManuallyDrop<ash::Entry>,
     instance_handle: InstanceHandle,
+    debug_messenger_handle: debug_messenger::DebugMessenger,
     surface_handle: SurfaceHandle,
     device_handle: DeviceHandle,
 }
@@ -35,6 +38,8 @@ impl Context {
         let entry = unsafe { ash::Entry::load()? };
 
         let instance_handle = InstanceHandle::new(&entry, window)?;
+        let debug_messenger_handle =
+            debug_messenger::DebugMessenger::new(&entry, &instance_handle.instance)?;
 
         let surface_handle =
             surface::SurfaceHandle::new(&entry, &instance_handle.instance, window)?;
@@ -45,6 +50,7 @@ impl Context {
         Ok(Self {
             entry: ManuallyDrop::new(entry),
             instance_handle,
+            debug_messenger_handle,
             surface_handle,
             device_handle,
         })
@@ -56,23 +62,26 @@ impl Context {
         available_layers: &[ash::vk::LayerProperties],
         unsupported_text_header: &str,
     ) -> bool {
-        let mut unsupported_layers = Vec::new();
-        required_layers.iter().for_each(|&required_layer| {
-            let required_layer_name = to_cstr(required_layer);
-            let is_supported = available_layers.iter().any(|available_layer| {
-                let available_layer_name = to_cstr(available_layer.layer_name.as_ptr());
+        let unsupported_layers = required_layers
+            .iter()
+            .filter_map(|&required_layer| {
+                let required_layer_name = to_cstr(required_layer);
+                if !available_layers.iter().any(|available_layer| {
+                    let available_layer_name = to_cstr(available_layer.layer_name.as_ptr());
 
-                required_layer_name == available_layer_name
-            });
-
-            if !is_supported {
-                unsupported_layers.push(required_layer_name.to_str().unwrap().to_owned());
-            }
-        });
+                    required_layer_name == available_layer_name
+                }) {
+                    Some(required_layer_name.to_str().unwrap().to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
         if !unsupported_layers.is_empty() {
             let unsupported_layers_text = format!(
-                "{unsupported_text_header}:\n{}",
+                "{}:\n{}",
+                unsupported_text_header,
                 unsupported_layers
                     .iter()
                     .map(|unsupported_layer_name| format!(
@@ -95,23 +104,27 @@ impl Context {
         available_extensions: &[ash::vk::ExtensionProperties],
         unsupported_text_header: &str,
     ) -> bool {
-        let mut unsupported_extensions = Vec::new();
-        required_extensions.iter().for_each(|&required_extension| {
-            let required_extension_name = to_cstr(required_extension);
-            let is_supported = available_extensions.iter().any(|available_extension| {
-                let available_extension_name = to_cstr(available_extension.extension_name.as_ptr());
+        let unsupported_extensions = required_extensions
+            .iter()
+            .filter_map(|&required_extension| {
+                let required_extension_name = to_cstr(required_extension);
+                if !available_extensions.iter().any(|available_extension| {
+                    let available_extension_name =
+                        to_cstr(available_extension.extension_name.as_ptr());
 
-                required_extension_name == available_extension_name
-            });
-
-            if !is_supported {
-                unsupported_extensions.push(required_extension_name.to_str().unwrap().to_owned());
-            }
-        });
+                    required_extension_name == available_extension_name
+                }) {
+                    Some(required_extension_name.to_str().unwrap().to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
 
         if !unsupported_extensions.is_empty() {
             let unsupported_extensions_text = format!(
-                "{unsupported_text_header}:\n{}",
+                "{}:\n{}",
+                unsupported_text_header,
                 unsupported_extensions
                     .iter()
                     .map(|unsupported_extension_name| format!(
@@ -136,6 +149,10 @@ impl Drop for Context {
             self.device_handle.device.device_wait_idle().unwrap();
 
             self.device_handle.device.destroy_device(None);
+            #[cfg(feature = "dev")]
+            self.debug_messenger_handle
+                .debug_utils_loader
+                .destroy_debug_utils_messenger(self.debug_messenger_handle.debug_utils, None);
             self.instance_handle.instance.destroy_instance(None);
             self.surface_handle
                 .surface_loader

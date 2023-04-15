@@ -19,15 +19,13 @@ impl PresentModes {
         let does_support_mailbox = present_modes.contains(&vk::PresentModeKHR::MAILBOX);
         let does_support_fifo = present_modes.contains(&vk::PresentModeKHR::FIFO);
 
-        let mut mailbox = None;
-        let mut fifo_relaxed = None;
-        match (does_support_mailbox, does_support_fifo) {
-            (true, true) => {
-                mailbox = Some(vk::PresentModeKHR::MAILBOX);
-                fifo_relaxed = Some(vk::PresentModeKHR::FIFO);
-            }
-            (true, false) => mailbox = Some(vk::PresentModeKHR::MAILBOX),
-            (false, true) => fifo_relaxed = Some(vk::PresentModeKHR::FIFO),
+        let (mailbox, fifo_relaxed) = match (does_support_mailbox, does_support_fifo) {
+            (true, true) => (
+                Some(vk::PresentModeKHR::MAILBOX),
+                Some(vk::PresentModeKHR::FIFO),
+            ),
+            (true, false) => (Some(vk::PresentModeKHR::MAILBOX), None),
+            (false, true) => (None, Some(vk::PresentModeKHR::FIFO)),
             (false, false) => return None,
         };
 
@@ -221,7 +219,7 @@ impl DeviceHandle {
             .push_next(&mut device_features2);
         let device = unsafe { instance.create_device(physical_device, &device_info, None)? };
 
-        Self::print_metadata(
+        Self::print_info(
             &device_name,
             queue_family_index,
             required_layer_names,
@@ -247,8 +245,7 @@ impl DeviceHandle {
         })
     }
 
-    // TODO: Print more verbose info.
-    fn print_metadata(
+    fn print_info(
         device_name: &str,
         queue_family_index: u32,
         layer_names: &[*const c_char],
@@ -262,8 +259,10 @@ impl DeviceHandle {
         let device_name = std::format!("{TAB_IN_SPACES}- Device Name: {device_name}\n");
         device_info.push_str(&device_name);
 
+        device_info.push_str(&device_name);
+
         let queue_info =
-            std::format!("{TAB_IN_SPACES}- Using Queue Family: {queue_family_index}\n\n");
+            std::format!("{TAB_IN_SPACES}- Using Queue Family Index: {queue_family_index}\n\n");
         device_info.push_str(&queue_info);
 
         #[cfg(feature = "dev")]

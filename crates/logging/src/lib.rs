@@ -1,4 +1,5 @@
 #![feature(panic_info_message)]
+#![feature(stmt_expr_attributes)]
 
 mod macros;
 mod utils;
