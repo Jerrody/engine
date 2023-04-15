@@ -1,2 +1,2 @@
 # Engine
-Learning purpose Engine written in Rust and Vulkan.
+This is the Engine.
