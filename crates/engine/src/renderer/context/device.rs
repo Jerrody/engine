@@ -36,9 +36,9 @@ impl PresentModes {
     }
 }
 
-pub struct DeviceHandle {
+pub struct DeviceManager {
     _physical_device: vk::PhysicalDevice,
-    pub device: ash::Device,
+    device: ash::Device,
     pub device_properties: vk::PhysicalDeviceProperties,
     pub surface_format: vk::SurfaceFormatKHR,
     pub present_modes: PresentModes,
@@ -46,12 +46,12 @@ pub struct DeviceHandle {
     pub transfer_queue: vk::Queue,
 }
 
-impl DeviceHandle {
+impl DeviceManager {
     const DEFAULT_QUEUE_PRIORITY: f32 = 1.0;
 
     pub fn new(
         instance: &ash::Instance,
-        surface_handle: &super::SurfaceHandle,
+        surface_handle: &super::SurfaceManager,
     ) -> EngineResult<Self> {
         let surface = surface_handle.surface;
         let surface_loader = &surface_handle.surface_loader;
@@ -86,6 +86,8 @@ impl DeviceHandle {
                         .find(|(i, queue_family_property)| {
                             let queue_flags = queue_family_property.queue_flags;
 
+                            // TODO: This implementation considers that queue family has both GRAPHICS and TRANSFER.
+                            // Later need to make it more flexible and general for the GPU of any kind.
                             queue_family_property.queue_count > 1
                                 && queue_flags.contains(vk::QueueFlags::GRAPHICS)
                                 && queue_flags.contains(vk::QueueFlags::TRANSFER)
@@ -243,6 +245,59 @@ impl DeviceHandle {
             graphics_queue,
             transfer_queue,
         })
+    }
+
+    #[inline(always)]
+    pub fn create_shader_module(
+        &self,
+        spirv_binary: &shaderc::CompilationArtifact,
+    ) -> EngineResult<vk::ShaderModule> {
+        let spirv_binary = spirv_binary.as_binary();
+        let shader_module_info = vk::ShaderModuleCreateInfo::default().code(spirv_binary);
+
+        unsafe {
+            Ok(self
+                .device
+                .create_shader_module(&shader_module_info, None)?)
+        }
+    }
+
+    #[inline(always)]
+    pub fn destroy_shader_module(&self, shader_module: vk::ShaderModule) {
+        unsafe { self.device.destroy_shader_module(shader_module, None) }
+    }
+
+    #[inline(always)]
+    pub fn destroy_semaphore(&self, semaphore: vk::Semaphore) {
+        unsafe { self.device.destroy_semaphore(semaphore, None) }
+    }
+
+    #[inline(always)]
+    pub fn destroy_fence(&self, fence: vk::Fence) {
+        unsafe { self.device.destroy_fence(fence, None) }
+    }
+
+    #[inline(always)]
+    pub fn create_semaphore(
+        &self,
+        semaphore_info: &vk::SemaphoreCreateInfo,
+    ) -> EngineResult<vk::Semaphore> {
+        unsafe { Ok(self.device.create_semaphore(semaphore_info, None)?) }
+    }
+
+    #[inline(always)]
+    pub fn create_fence(&self, fence_info: &vk::FenceCreateInfo) -> EngineResult<vk::Fence> {
+        unsafe { Ok(self.device.create_fence(fence_info, None)?) }
+    }
+
+    #[inline(always)]
+    pub fn wait_for_idle(&self) -> EngineResult<()> {
+        unsafe { Ok(self.device.device_wait_idle()?) }
+    }
+
+    #[inline(always)]
+    pub fn destroy_device(&self) {
+        unsafe { self.device.destroy_device(None) }
     }
 
     fn print_info(

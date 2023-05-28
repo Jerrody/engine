@@ -11,6 +11,8 @@ pub enum EngineError {
     InstanceCreationFailed(String),
     #[error("Failed to create Vulkan Device: {0}.")]
     DeviceCreationFailed(String),
+    #[error("Shader Error: {0}")]
+    ShaderError(String),
     #[error("Vulkan API Error: {0}.")]
     VulkanApiError(#[from] Result),
     #[error("{0}.")]

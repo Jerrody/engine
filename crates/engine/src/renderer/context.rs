@@ -2,29 +2,34 @@
 mod debug_messenger;
 mod device;
 mod instance;
+mod shader;
 mod surface;
+mod sync;
+mod resource_manager;
 
 use logging::*;
 
 use crate::{
     error::EngineResult,
-    renderer::{context::device::DeviceHandle, utils::*},
+    renderer::{context::device::DeviceManager, utils::*},
 };
 
 use instance::InstanceHandle;
-use surface::SurfaceHandle;
+use surface::SurfaceManager;
 
 use std::mem::ManuallyDrop;
 
-pub struct Context {
+pub struct Context<'a> {
     entry: ManuallyDrop<ash::Entry>,
-    instance_handle: InstanceHandle,
-    debug_messenger_handle: debug_messenger::DebugMessenger,
-    surface_handle: SurfaceHandle,
-    device_handle: DeviceHandle,
+    instance_manager: InstanceHandle,
+    debug_messenger_manager: debug_messenger::DebugMessengerManager,
+    surface_manager: SurfaceManager,
+    device_manager: DeviceManager,
+    shader_manager: shader::ShaderManager<'a>,
+    sync_manager: sync::SynchronizationPrimitivesManager,
 }
 
-impl Context {
+impl Context<'_> {
     #[cfg(feature = "dev")]
     const VALIDATION_LAYER_NAME: *const std::os::raw::c_char = cstr!("VK_LAYER_KHRONOS_validation");
 
@@ -37,22 +42,27 @@ impl Context {
         debug!("Loading Vulkan lib.");
         let entry = unsafe { ash::Entry::load()? };
 
-        let instance_handle = InstanceHandle::new(&entry, window)?;
-        let debug_messenger_handle =
-            debug_messenger::DebugMessenger::new(&entry, &instance_handle.instance)?;
+        let instance_manager = InstanceHandle::new(&entry, window)?;
+        let debug_messenger_manager =
+            debug_messenger::DebugMessengerManager::new(&entry, &instance_manager.instance)?;
 
-        let surface_handle =
-            surface::SurfaceHandle::new(&entry, &instance_handle.instance, window)?;
+        let surface_manager =
+            surface::SurfaceManager::new(&entry, &instance_manager.instance, window)?;
 
         debug!("Creating Device.");
-        let device_handle = DeviceHandle::new(&instance_handle.instance, &surface_handle)?;
+        let device_manager = DeviceManager::new(&instance_manager.instance, &surface_manager)?;
+        let sync_manager = sync::SynchronizationPrimitivesManager::new(&device_manager)?;
+
+        let shader_manager = shader::ShaderManager::new();
 
         Ok(Self {
             entry: ManuallyDrop::new(entry),
-            instance_handle,
-            debug_messenger_handle,
-            surface_handle,
-            device_handle,
+            instance_manager,
+            debug_messenger_manager,
+            surface_manager,
+            device_manager,
+            shader_manager,
+            sync_manager,
         })
     }
 
@@ -143,20 +153,23 @@ impl Context {
     }
 }
 
-impl Drop for Context {
+impl Drop for Context<'_> {
     fn drop(&mut self) {
         unsafe {
-            self.device_handle.device.device_wait_idle().unwrap();
+            self.device_manager.wait_for_idle().unwrap();
+            self.shader_manager.unload_shaders(&self.device_manager);
+            self.sync_manager.destroy_resources(&self.device_manager);
+            self.device_manager.destroy_device();
 
-            self.device_handle.device.destroy_device(None);
             #[cfg(feature = "dev")]
-            self.debug_messenger_handle
+            self.debug_messenger_manager
                 .debug_utils_loader
-                .destroy_debug_utils_messenger(self.debug_messenger_handle.debug_utils, None);
-            self.instance_handle.instance.destroy_instance(None);
-            self.surface_handle
+                .destroy_debug_utils_messenger(self.debug_messenger_manager.debug_utils, None);
+
+            self.instance_manager.instance.destroy_instance(None);
+            self.surface_manager
                 .surface_loader
-                .destroy_surface(self.surface_handle.surface, None);
+                .destroy_surface(self.surface_manager.surface, None);
 
             ManuallyDrop::drop(&mut self.entry);
         }

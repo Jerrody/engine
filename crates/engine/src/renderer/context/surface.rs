@@ -5,12 +5,12 @@ use crate::error::EngineResult;
 use ash::extensions::khr::Surface;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
-pub struct SurfaceHandle {
+pub struct SurfaceManager {
     pub surface_loader: Surface,
     pub surface: ash::vk::SurfaceKHR,
 }
 
-impl SurfaceHandle {
+impl SurfaceManager {
     pub fn new(
         entry: &ash::Entry,
         instance: &ash::Instance,

@@ -31,13 +31,15 @@ unsafe extern "system" fn debug_callback(
     vk::FALSE
 }
 
-pub struct DebugMessenger {
+pub struct DebugMessengerManager {
     pub debug_utils_loader: DebugUtils,
     pub debug_utils: vk::DebugUtilsMessengerEXT,
 }
 
-impl DebugMessenger {
+impl DebugMessengerManager {
     pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> EngineResult<Self> {
+        debug!("Initializing Validation Layer of Vulkan Instance");
+
         let debug_utils_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
             .message_severity(
                 vk::DebugUtilsMessageSeverityFlagsEXT::INFO

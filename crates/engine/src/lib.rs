@@ -1,21 +1,31 @@
+#![feature(const_trait_impl)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod common;
 mod error;
 mod renderer;
+
+use std::hash::BuildHasher;
 
 use error::*;
 use logging::*;
 
-pub struct Engine {
-    renderer: renderer::Renderer,
+pub struct Engine<'a> {
+    renderer: renderer::Renderer<'a>,
     _logging: Logging,
 }
 
-impl Engine {
+impl Engine<'_> {
     const ENGINE_LOG_DIRECTORY: &str = "logs";
     const ENGINE_LOG_NAME: &str = "engine.log";
 
     pub fn new(window: &winit::window::Window) -> EngineResult<Self> {
+        unsafe {
+            common::HASHER
+                .set(ahash::random_state::RandomState::with_seeds(1, 2, 3, 4).build_hasher())
+                .unwrap()
+        };
+
         let logging = Self::init_logging();
 
         info!("Initializing renderer.");
